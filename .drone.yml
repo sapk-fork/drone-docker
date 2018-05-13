@@ -3,19 +3,28 @@ workspace:
   path: src/github.com/drone-plugins/drone-docker
 
 pipeline:
+
   build:
-    image: golang:1.9
+    image: golang:1.10
+    environment:
+     - CGO_ENABLED=0
     commands:
       - go get -u github.com/golang/dep/cmd/dep
       - dep ensure
       - go vet ./...
       - go test -cover ./...
-      - sh .drone.sh
+      - go build -ldflags "-X main.build=${DRONE_BUILD_NUMBER}" -a -tags netgo -o "release/${GOOS}/${GOARCH}/drone-docker" github.com/drone-plugins/drone-docker/cmd/drone-docker
+      - go build -a -tags netgo -o release/${GOOS}/${GOARCH}/drone-docker-heroku github.com/drone-plugins/drone-docker/cmd/drone-docker-heroku
+      - go build -a -tags netgo -o release/${GOOS}/${GOARCH}/drone-docker-gcr github.com/drone-plugins/drone-docker/cmd/drone-docker-gcr
+      - go build -a -tags netgo -o release/${GOOS}/${GOARCH}/drone-docker-ecr github.com/drone-plugins/drone-docker/cmd/drone-docker-ecr
+
+#TODO replace with AGR for FROM to load each platform
 
   publish:
     image: plugins/docker
-    repo: plugins/docker
-    tags: [ "latest", "17", "17.12" ]
+    repo: sapk/plugins-docker
+    tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
+    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/Dockerfile
     when:
@@ -23,9 +32,10 @@ pipeline:
       event: push
 
   publish_heroku:
-    image: plugins/docker
-    repo: plugins/heroku
-    tags: [ "latest", "17", "17.12" ]
+    image: sapk/plugins-docker
+    repo: sapk/plugins-heroku
+    tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
+    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/heroku/Dockerfile
     when:
@@ -33,9 +43,10 @@ pipeline:
       event: push
 
   publish_gcr:
-    image: plugins/docker
-    repo: plugins/gcr
-    tags: [ "latest", "17", "17.10" ]
+    image: sapk/plugins-docker
+    repo: sapk/plugins-gcr
+    tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
+    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/gcr/Dockerfile
     when:
@@ -43,11 +54,24 @@ pipeline:
       event: push
 
   publish_ecr:
-    image: plugins/docker
-    repo: plugins/ecr
-    tags: [ "latest", "17", "17.10" ]
+    image: sapk/plugins-docker
+    repo: sapk/plugins-ecr
+    tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
+    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/ecr/Dockerfile
     when:
       branch: master
       event: push
+
+#Add manifest upload
+
+matrix:
+  include:
+    - GOOS: linux
+      GOARCH: amd64
+    - GOOS: linux
+      GOARCH: arm64
+    - GOOS: linux
+      GOARCH: arm
+      GOARM: 7

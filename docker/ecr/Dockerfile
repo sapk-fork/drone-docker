@@ -2,5 +2,8 @@
 
 FROM plugins/docker:latest
 
-ADD release/linux/amd64/drone-docker-ecr /bin/
+ARG OS="linux"
+ARG ARCH="amd64"
+
+ADD release/${OS}/${ARCH}/drone-docker-ecr /bin/
 ENTRYPOINT ["/usr/local/bin/dockerd-entrypoint.sh", "/bin/drone-docker-ecr"]
