@@ -18,15 +18,43 @@ pipeline:
       - go build -a -tags netgo -o release/${GOOS}/${GOARCH}/drone-docker-gcr github.com/drone-plugins/drone-docker/cmd/drone-docker-gcr
       - go build -a -tags netgo -o release/${GOOS}/${GOARCH}/drone-docker-ecr github.com/drone-plugins/drone-docker/cmd/drone-docker-ecr
 
-#TODO replace with AGR for FROM to load each platform
-
   publish:
     image: plugins/docker
     repo: sapk/plugins-docker
     tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
-    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
+    build_args: [ "BASE=${BASE}", "OS=${GOOS}", "ARCH=${GOARCH}" ]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/Dockerfile
+    when:
+      branch: master
+      event: push
+
+  publish:
+    image: plugins/manifest
+    secrets: [ docker_username, docker_password ]
+    platforms: linux/amd64, linux/arm64, linux/arm
+    template: sapk/plugins-docker:latest-OS-ARCH
+    target: sapk/plugins-docker
+    when:
+      branch: master
+      event: push
+
+  publish:
+    image: plugins/manifest
+    secrets: [ docker_username, docker_password ]
+    platforms: linux/amd64, linux/arm64, linux/arm
+    template: sapk/plugins-docker:18-OS-ARCH
+    target: sapk/plugins-docker:18
+    when:
+      branch: master
+      event: push
+
+  publish:
+    image: plugins/manifest
+    secrets: [ docker_username, docker_password ]
+    platforms: linux/amd64, linux/arm64, linux/arm
+    template: sapk/plugins-docker:18.03-OS-ARCH
+    target: sapk/plugins-docker:18.03
     when:
       branch: master
       event: push
@@ -35,7 +63,7 @@ pipeline:
     image: sapk/plugins-docker
     repo: sapk/plugins-heroku
     tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
-    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
+    build_args: [ "BASE=${BASE}", "OS=${GOOS}", "ARCH=${GOARCH}" ]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/heroku/Dockerfile
     when:
@@ -46,7 +74,7 @@ pipeline:
     image: sapk/plugins-docker
     repo: sapk/plugins-gcr
     tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
-    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
+    build_args: [ "BASE=${BASE}", "OS=${GOOS}", "ARCH=${GOARCH}" ]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/gcr/Dockerfile
     when:
@@ -57,21 +85,24 @@ pipeline:
     image: sapk/plugins-docker
     repo: sapk/plugins-ecr
     tags: [ "latest-${GOOS}-${GOARCH}", "18-${GOOS}-${GOARCH}", "18.03-${GOOS}-${GOARCH}" ]
-    args: ["OS=${GOOS}", "ARCH=${GOARCH}"]
+    build_args: [ "BASE=${BASE}", "OS=${GOOS}", "ARCH=${GOARCH}" ]
     secrets: [ docker_username, docker_password ]
     dockerfile: docker/ecr/Dockerfile
     when:
       branch: master
       event: push
 
-#Add manifest upload
-
+#TODO Add missing manifest upload
+#TODO Update BASE digest with `docker manifest inspect docker:18.03.1-ce-dind`
 matrix:
   include:
     - GOOS: linux
       GOARCH: amd64
+      BASE: "docker@sha256:07ebaff119606cc4dbc4a8876e333fd9fbe224fb095f74d36ffb2322476b07d2"
     - GOOS: linux
       GOARCH: arm64
+      BASE: "docker@sha256:19b50379a60a591ff1d154478ac5ed6566243d19605a7b284ba361327f1417fa"
     - GOOS: linux
       GOARCH: arm
       GOARM: 7
+      BASE: "docker@sha256:4fe72f971d3b4cc1d40edfa9495e54c0d6b0dcae68e8a8fcbb54426828ba2ae8"

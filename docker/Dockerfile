@@ -1,6 +1,7 @@
 # docker build --rm -f docker/Dockerfile -t plugins/docker .
 
-FROM docker:18.03.1-ce-dind
+ARG BASE=docker:18.03.1-ce-dind
+FROM $BASE
 
 ARG OS="linux"
 ARG ARCH="amd64"
